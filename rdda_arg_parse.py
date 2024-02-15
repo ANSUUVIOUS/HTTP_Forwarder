@@ -6,6 +6,7 @@ import http.server
 from http.server import BaseHTTPRequestHandler
 import argparse
 import netifaces
+import ssl
 
 
 class ProxyHandler(BaseHTTPRequestHandler):
@@ -14,7 +15,6 @@ class ProxyHandler(BaseHTTPRequestHandler):
     destination_port = 443
     unverified_https_site = True
 
-        
     def do_GET(self):
         self.proxy_request()
 
@@ -24,8 +24,9 @@ class ProxyHandler(BaseHTTPRequestHandler):
     def proxy_request(self):
         # Destination HTTPS URL
 
+        ctx = ssl._create_unverified_context() if self.unverified_https_site else None
         # Connect to the destination server
-        conn = http.client.HTTPSConnection(self.destination_host, self.destination_port)
+        conn = http.client.HTTPSConnection(self.destination_host, self.destination_port, context=ctx)
         conn.request(self.command, self.path, body=self.rfile.read(), headers=self.headers)
 
         # Get the response from the destination server
@@ -61,28 +62,30 @@ def get_local_ip():
 
 def run_proxy_server():
     parser = argparse.ArgumentParser(description="RDDA HTTP Proxy Server")
-    parser.add_argument('--destination-host', '-dh', default="example.com", help="Destination host (ex: HTTPs RD Server Link)")
+    parser.add_argument('--destination-host', '-dh', default="rdda.com", help="Destination host (ex: HTTPs RD Server Link)")
     parser.add_argument('--source-host', '-sh', default=get_local_ip(), help="Source host to connect to for HTTPs Forwarding")
     parser.add_argument('--source-port', '-sp', type=int, default=8080, help="Source port of HTTP Server")
-    parser.add_argument('--verified-site', '-vs', type=bool, default=False, help="Report whether the site is verified or not")
-    parser.add_argument('--tokens', nargs='+', required=False, help='RDDA tokens that will be formatted to valid HTTP URLs for usage')
+    parser.add_argument('--verified-site', '-vs', action='store_true', help="Report whether the site is verified or not")
+    parser.add_argument('--tokens', '-tk', nargs='+', required=False, help="RDDA tokens that will be formatted to valid HTTP URLs for usage")
 
     args = parser.parse_args()
     server_address = (args.source_host, args.source_port)
 
     httpd = http.server.HTTPServer(server_address, ProxyHandler)
-    print(f"Proxy server running on port {args.source_port}")
+    print(f"Proxy server running on port {args.source_port}\n")
 
     if args.tokens is not None and len((args.tokens)) > 0:
         for idx, token in enumerate(args.tokens):
             print(f"[{idx + 1}] http://{args.source_host}:{args.source_port}/index.html?token={token}")
     else:
         token = str(input("Please enter in a token to be used for connection to the RDDA instance: "))
-        print(f"[1] http://{args.source_host}:{args.source_port}/index.html?token={token}")
+        print(f"\n[1] http://{args.source_host}:{args.source_port}/index.html?token={token}")
 
-    httpd.destination_host = args.destination_host
-    httpd.unverified_https_site = args.verified_site
+
+    httpd.RequestHandlerClass.destination_host = args.destination_host
+    httpd.RequestHandlerClass.unverified_https_site = args.verified_site
+
     httpd.serve_forever()
 
-if __name__ == '__main__':  # Change this to the desired port
+if __name__ == '__main__':
     run_proxy_server()
