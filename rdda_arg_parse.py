@@ -65,7 +65,7 @@ def run_proxy_server():
     parser.add_argument('--destination-host', '-dh', default="rdda.com", help="Destination host (ex: HTTPs RD Server Link)")
     parser.add_argument('--source-host', '-sh', default=get_local_ip(), help="Source host to connect to for HTTPs Forwarding")
     parser.add_argument('--source-port', '-sp', type=int, default=8080, help="Source port of HTTP Server")
-    parser.add_argument('--verified-site', '-vs', action='store_true', help="Report whether the site is verified or not")
+    parser.add_argument('--verified-site', '-vs', action='store_true', help="Report that the site is verified (no risky site error)")
     parser.add_argument('--tokens', '-tk', nargs='+', required=False, help="RDDA tokens that will be formatted to valid HTTP URLs for usage")
 
     args = parser.parse_args()
@@ -83,8 +83,9 @@ def run_proxy_server():
 
 
     httpd.RequestHandlerClass.destination_host = args.destination_host
-    httpd.RequestHandlerClass.unverified_https_site = args.verified_site
+    httpd.RequestHandlerClass.unverified_https_site = not args.verified_site
 
+    print(f"\n{httpd.RequestHandlerClass.unverified_https_site} {httpd.RequestHandlerClass.destination_host}")
     httpd.serve_forever()
 
 if __name__ == '__main__':
